@@ -9,41 +9,52 @@ class XYModelMetropolisSimulation:
                  beta,
                  J=1,
                  random_state=None):
+
+        # initialize parameters
         self.beta = beta
+        self.t = 0
+        self.J = J
+
+        # initialize lattice in a random state
         self.rs = np.random.RandomState(seed=random_state)
         self.L = self.rs.rand(*lattice_shape)
         self.lattice_shape = lattice_shape
         self.d = len(lattice_shape)
         self.initial_L = self.L.copy()
-        self.t = 0
-        self.J = J
+
+        # initialize Hamiltonian matrix
         self.modified_in_last_step = False
         self.H_matrix = np.zeros(self.L.shape)
         self._calculate_H_matrix()
+        self.H = np.sum(self.H_matrix) / 2
+        self.H_vals = [self.H]
+
+        # setup correlations
         self.correlations = []
         for r in range(int(self.L.shape[0] / 2)):
             self.correlations.append(np.cos(self.L[0,0] - self.L[r, 0]))
         self.correlations = np.array(self.correlations).reshape((int(self.L.shape[0] / 2), 1))
-        self.H = np.sum(self.H_matrix) / 2
-        self.H_vals = [self.H]
         
     def make_step(self):
         change_pos = tuple([self.rs.randint(_) for _ in self.lattice_shape])
         new_val = self.rs.rand()
         delta_H = self._get_delta_H(change_pos, new_val)
+
+        # gets accepted if energy decreases or gets accepted with a certain probability if energy increases
         if (delta_H > 0):
             if (self.rs.rand() < np.exp(-self.beta * delta_H)):
                 self._renew_H_matrix(change_pos, new_val)
                 self.L[change_pos] = new_val
-                self.H += delta_H / 2
+                self.H += delta_H
                 self.modified_in_last_step = True
             else:
                 self.modified_in_last_step = False
         else:
             self._renew_H_matrix(change_pos, new_val)
             self.L[change_pos] = new_val
-            self.H += delta_H / 2
+            self.H += delta_H
             self.modified_in_last_step = True
+
         self.t += 1
     
     def get_correlations(self):
@@ -58,19 +69,39 @@ class XYModelMetropolisSimulation:
         ls = least_squares(optimized_func, [0, 0], kwargs={'R' : np.arange(bounds, len(A) - bounds),
                                                            'f_log' : np.log(np.maximum(A[bounds:-bounds], [1e-10] * (len(A) - 2 * bounds)))})
         return 1 / ls.x[0]
-    
+
     def get_specific_heat(self):
         actual_vals = int(len(self.H_vals) / 10)
         return np.var(self.H_vals[-actual_vals:]) * (self.beta ** 2)
     
     def simulate(self, steps, iters_per_step):
+        # how many steps there are
         for i in range(steps):
+
+            # how many spins get changed per step
             for j in range(iters_per_step):
                 self.make_step()
+
+            # compute extra values
             self._compute_space_correlations()
             self.H_vals.append(self.H)
+
+            # debugging line
+            if i % 100 == 0 :
+                print('step %d of %d' %(i, steps))
+
+                H1 = self.H
+
+                # calculate using different method
+                self._calculate_H_matrix()
+                self.H = np.sum(self.H_matrix) / 2
+
+                H2 = self.H
+                print('difference between methods %f' %(H2 - H1))
+
             
     def _calculate_H_matrix(self):
+        # function calculates the energy based on the spin values of the lattice
         for i in range(self.L.shape[0]):
             for j in range(self.L.shape[1]):
                 self.H_matrix[i, j] = 0
