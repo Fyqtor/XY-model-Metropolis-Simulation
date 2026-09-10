@@ -86,19 +86,6 @@ class XYModelMetropolisSimulation:
             self._compute_space_correlations()
             self.H_vals.append(self.H)
 
-            # debugging line
-            if i % 100 == 0 :
-                print('step %d of %d' %(i, steps))
-
-                H1 = self.H
-
-                # calculate using different method
-                self._calculate_H_matrix()
-                self.H = np.sum(self.H_matrix) / 2
-
-                H2 = self.H
-                print('difference between methods %f' %(H2 - H1))
-
             
     def _calculate_H_matrix(self):
         # function calculates the energy based on the spin values of the lattice
