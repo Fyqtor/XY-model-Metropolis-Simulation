@@ -1,0 +1,11 @@
+Notes on the class: it has attributes
+- Beta
+- t
+- J
+- rs    # random seed
+- L     # randomly initialised latice based on lattice given on creation
+        # values range from 0 to 1
+- lattice shape
+- d     # dimension
+- initial_L
+- 
